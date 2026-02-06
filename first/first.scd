@@ -66,3 +66,129 @@ x = {
   sig = PinkNoise.ar(0.3 ! 2);
 }.play
 )
+
+(
+{
+  var sig, env;
+  sig = SinOsc.ar(440, mul: 0.1) ! 2;
+  env = Line.kr(start: 1, end: 0.001, dur: 2, doneAction: 2);
+  sig = sig * env;
+}.play;
+)
+
+(
+e = Env.new(
+  levels: [0, 1, 0.1, 1, 0],
+  times: [1, 0.1, 0.1, 2],
+  curve: [2, 0, 0, -1]
+).plot;
+)
+
+(
+{
+  var sig, env;
+  sig = SinOsc.ar(440, mul: 0.1) ! 2;
+  env = EnvGen.kr(
+    Env.new(
+      levels: [0, 1, 0.1, 1, 0],
+      times: [1, 0.1, 0.1, 2],
+      curve: [2, 0, 0, -1]
+    ),
+    doneAction: 2
+  );
+  sig = sig * env;
+}.play;
+)
+
+(
+envwithgate = {
+  var sig, env;
+  sig = SinOsc.ar(440, mul: 0.1) ! 2;
+  env = EnvGen.kr(
+    Env.new(
+      levels: [0, 1, 0.1, 1, 0],
+      times: [1, 0.1, 0.1, 2],
+      curve: [2, 0, 0, -1]
+      releaseNode: 3,
+      loopNode: 1
+    ),
+    gate: \gate.kr(0),
+    doneAction: 2
+  );
+  sig = sig * env;
+}.play;
+)
+
+envwithgate.set(\gate, 1);
+envwithgate.set(\gate, 0);
+
+envwithgate = {
+  var sig, env;
+  sig = SinOsc.ar(440, mul: 0.1) ! 2;
+  env = Env.new(
+      levels: [0, 1, 0.1, 1, 0],
+      times: [1, 0.1, 0.1, 2],
+      curve: [2, 0, 0, -1]
+  ).kr(2);
+  sig = sig * env;
+}.play;
+)
+
+envwithgatenotdone = {
+  var sig, env;
+  sig = SinOsc.ar(440, mul: 0.1) ! 2;
+  env = Env.kr(
+    Env.perc(0.001, 1),
+    gate: \gate2.tr(0),
+    doneAction: 0
+  );
+  sig = sig * env;
+}.play;
+)
+
+envwithgatenotdone(\gate2, 1);
+
+(
+{
+  var sig, freq;
+  #freq = exprand(199, 2000) ! 5;
+  freq = {exprand(200, 2000)} ! 5;
+  sig = SinOsc.ar(freq, mul: 0.1);
+  sig = Splay.ar(sig);
+}.play
+)
+
+// Balance2
+
+{LFDNoise3.ar(200)}.plot(0.2)
+
+s.scope;
+{LFDNoise3.kr(200)}.play
+
+FreqScope.new;
+
+//s.volume.gui;
+s.makeGui;
+
+(
+x = {
+  var sig, mod;
+  mod = SinOsc.ar(\modfreq.kr(1), 3pi/2).exprange(80, 8000);
+  sig = Saw.ar([40, 41], mul: 0.1);
+  sig = LPF.ar(sig, mod);
+}.play
+)
+
+(
+SynthDef(\wobble, {
+  var sig, mod;
+  mod = SinOsc.ar(\modfreq.kr(1), 3pi/2).exprange(80, 8000);
+  sig = Saw.ar([40, 41], mul: 0.1);
+  sig = LPF.ar(sig, mod);
+  Out.ar(\out.kr(0), sig);
+}).add;
+)
+
+x = Synth(\wobble);
+// x.set(...)
+
