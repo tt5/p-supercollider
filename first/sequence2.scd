@@ -1,6 +1,7 @@
 
 Safety.setLimit(0.5);
 
+NetAddr.langPort;
 s.quit
 s.boot
 s.volume.gui
@@ -128,24 +129,33 @@ p = Pseq([Pseq([60], 16), Pseq([62], 16), Pseq([64], 16)], inf);
 (
 ~test = Pbind(
   \instrument, \kick,
-	\midinote, Pdefn(\key1, 48),
-	\amp, Pseq([0.8,0.8,0.8,0.8], inf),
+	\midinote, Pdefn(\key1, Pseq([40,40,40,40,40,40,40,40], inf)),
+	\amp, Pseq([0.9,0.9,0.9,0.9], inf),
 	\atk, Pfunc({ arg ev; ev.amp/2}),
 	\dec, Pfunc({ arg ev; ev.amp}),
   \legato, 1,
-	\dur, Pseq([2, Rest(0), Rest(1), Rest(1), Rest(1), Rest(1), Rest(1), Rest(1)], inf)
+	\dur, Pseq([4, Rest(0), Rest(0), Rest(0), Rest(1), Rest(1), Rest(2), Rest(0)], inf)
 );
 )
+~test = Pfin(inf, ~test).play(t)
 
 (
-Pdefn(\key1, 48);
+OSCdef(key: \myOscDef, func: {|msg|
+	Pdefn(\key1, Pseq([msg[1], msg[2], msg[3], msg[4], msg[5], msg[6], msg[7], msg[8]], inf));
+	"hi".postln;
+}, path: "/my_path");
+)
+OSCFunc.trace(false, true);
+
+(
+Pdefn(\key1, seq([0,0,0,0,0,0,0,0], inf));
 )
 
 ~play1 = Pfin(3*16, ~one).play(t)
 ~play1 = Pfin(3*16, ~two).play(t)
 ~play1 = Pfin(3*16, ~three).play(t)
 ~play1 = Pfin(2*8, ~bass).play(t)
-~test = Pfin(8, ~test).play(t)
+
 
 
 ~phrase1 = Pseq([Pfin(8, ~one), Pfin(8, ~two)], 1).play(t)
@@ -161,22 +171,24 @@ SynthDef(\kick, { |out = 0|
 	a2 = SinOsc.ar(12800, pi, Decay2.ar(PulseDivider.ar(a1,700), a1, 0.7));
 	a1 = SinOsc.ar(\freq.ir(200)+a2, 0, PulseDivider.ar(a2,2));
 	a2 = SinOsc.ar(\freq.ir(200)+a1, pi, Decay2.ar(PulseDivider.ar(a1,2), 0.02, 0.5));
-
-	sig = CompanderD.ar(a2,
-		thresh: 0.7,
+	a3 = Fold.ar(a2, -0.1-a1*a1,0.1+a1*a1)* 0.9;
+	sig = CompanderD.ar(a3,
+		thresh: 0.9,
 		slopeBelow: 0.5,
         slopeAbove: 1,
-        clampTime:  0.04,
-        relaxTime:  0.06
-    ) * 0.5;
+        clampTime:  0.01,
+        relaxTime:  0.0001
+    ) * 0.9;
 	  env = Env.adsr(
-    \atk.ir(0.01),
+    \atk.ir(0.02),
     \dec.ir(0.25),
     \slev.ir(0.5),
     \rel.ir(0.2);
   ).kr(2, \gate.kr(1));
+
 	sig = sig * env;
-	Out.ar(out, sig * 0.005)
+	//Out.ar(out, sig * 0.005)
+	Out.ar(out, sig * 0.5)
 }).add;
 )
 s.scope

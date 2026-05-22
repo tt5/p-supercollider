@@ -1,1 +1,3 @@
 inxi -A
+
+audacity

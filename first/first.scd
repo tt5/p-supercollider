@@ -2,8 +2,11 @@ Quarks.install("SafetyNet")
 Safety.all;
 Safety.setLimit(0.5);
 
+s.volume.gui
+
 s.quit
 s.boot
+s.freeAll
 
 // Turn down volume first!
 x1 = { [SinOsc.ar(440, 0, 0.2), SinOsc.ar(442, 0, 0.2)] };
@@ -191,4 +194,104 @@ SynthDef(\wobble, {
 
 x = Synth(\wobble);
 // x.set(...)
+
+// https://gist.github.com/nhthn/56168191c3cf2d1dcf9f124d0693a335
+
+(
+SynthDef(\kick, {
+	var snd;
+	snd = SinOsc.ar(Env.perc(0.001, 0.3, curve: -8).ar.linexp(0, 1, 30, 400));
+	snd = snd + (SinOsc.ar(XLine.ar(4000, 100, 0.01)) * Env.perc(0.001, 0.01).ar);
+	snd = snd + (BPF.ar(Hasher.ar(Sweep.ar), 8000, 0.5) * 3.dbamp * Env.perc(0.01, 0.03).ar);
+	snd = snd * Env.perc(0.001, 0.2, curve: -1).ar(Done.freeSelf);
+	snd = snd * 5.dbamp;
+	snd = snd.tanh;
+	snd = Pan2.ar(snd, \pan.kr(0));
+	OffsetOut.ar(\out.kr(0), snd);
+}).play;
+)
+
+(
+SynthDef(\snare, {
+	var snd;
+	snd = SinOsc.ar(Env.perc(0.001, 0.05, curve: -8).ar.linexp(0, 1, 230, 1000) * [1, 2.3]);
+	snd = (snd * [0, -15].dbamp).sum;
+	snd = snd + (SinOsc.ar(XLine.ar(8000, 100, 0.01)) * Env.perc(0.001, 0.01).ar);
+	snd = snd + (BPF.ar(Hasher.ar(Sweep.ar), 2100, 0.2) * 3.dbamp * Env.perc(0.05, 0.23).ar);
+	snd = snd + HPF.ar((snd * 3.dbamp).tanh, 100);
+	snd = snd * Env.perc(0.001, 0.12, curve: -1).ar(Done.freeSelf);
+	snd = snd * -5.dbamp;
+	snd = Pan2.ar(snd, \pan.kr(0));
+	OffsetOut.ar(\out.kr(0), snd);
+}).play;
+)
+
+(
+SynthDef(\glitch, {
+	var snd, seed, randomValue, random;
+	seed = \seed.kr(0);
+	randomValue = seed;
+	random = {
+		randomValue = Hasher.kr(randomValue);
+		randomValue;
+	};
+	snd = SinOsc.ar(random.().linexp(-1, 1, 100, 8000) * XLine.kr(2, 1, 0.01));
+	snd = snd * (1 + SinOsc.ar(random.().linexp(-1, 1, 100, 8000)));
+	snd = BPF.ar(snd, random.().linexp(-1, 1, 100, 8000) * ([1, -1] * 12 * random.()).midiratio, 0.1) * 10.dbamp;
+	snd = snd.sum;
+	snd = (snd * 20.dbamp).tanh;
+	snd = Latch.ar(snd, Impulse.ar(random.().linexp(-1, 1, 1000, 16e3)));
+	snd = snd * Env.perc(0.001, random.().linexp(-1, 1, 0.01, 0.2), curve: -4).ar(Done.freeSelf);
+	snd = snd * -5.dbamp;
+	snd = Pan2.ar(snd, \pan.kr(0));
+	OffsetOut.ar(\out.kr(0), snd);
+}).play;
+)
+
+
+SynthDef(\pluck, {
+	var snd, freq;
+	freq = \freq.kr(440);
+	snd = SinOsc.ar(freq) * Env.perc(0.001, 0.3).ar * 1000;
+	snd = SinOsc.ar(freq + snd);
+	snd = snd + SinOsc.ar(freq);
+	snd = LPF.ar(snd, XLine.kr(8000, 4000, 0.1));
+	snd = snd * Env.perc(0.001, 0.3, curve: -8).ar(Done.freeSelf);
+	snd = Pan2.ar(snd, \pan.kr(0));
+	OffsetOut.ar(\out.kr(0), snd);
+}).add;
+
+SynthDef(\bass, {
+	var snd, freq;
+	freq = \freq.kr(440);
+	snd = Pulse.ar(freq, 0.7);
+	snd = snd + SinOsc.ar(freq / 2);
+	snd = LPF.ar(snd, XLine.kr(8000, 1000, 0.4));
+	snd = snd * 2.dbamp;
+	snd = snd * Env.perc(0.001, 0.3, curve: -4).ar(Done.freeSelf);
+	snd = Pan2.ar(snd, \pan.kr(0));
+	OffsetOut.ar(\out.kr(0), snd);
+}).add;
+
+SynthDef(\freqShift, {
+	var snd, up, down;
+	snd = LocalIn.ar(1);
+	snd = snd + (PinkNoise.ar * -20.dbamp);
+	up = snd;
+	up = FreqShift.ar(up, LFNoise2.kr(3) * 10);
+	up = BPF.ar(up, LFNoise2.kr(3).linexp(-1, 1, 100, 4000) * (12 * [-1, 1] * LFNoise2.kr(3)).midiratio, 0.1).sum;
+	up = LeakDC.ar(up).tanh;
+	down = snd;
+	down = FreqShift.ar(down, LFNoise2.kr(3) * 10);
+	down = CombC.ar(snd, 0.1, 1 / LFNoise2.kr(0.3).linexp(-1, 1, 10, 500), 0.01);
+	down = LeakDC.ar(down).tanh;
+	snd = up + down;
+	LocalOut.ar(snd);
+	snd = snd * \amp.kr(-20.dbamp);
+	snd = snd * Env.asr(0, 1, 1).ar(Done.none, \gate.kr(1));
+	snd = GVerb.ar(snd, revtime: 1);
+	snd = snd * Env.asr(0, 1, 3).ar(Done.freeSelf, \gate.kr(1));
+	Out.ar(\out.kr(0), snd);
+}).add;
+
 
